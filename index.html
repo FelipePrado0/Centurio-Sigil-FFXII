@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XII Equipment Editor Professional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="body">
+
+    <!-- Drop Zone Invisível (Ativa ao arrastar) -->
+    <div class="drop-zone-overlay" id="dropZone">
+        <div class="drop-zone-content">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #7c4dff;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            <h2 style="color: #fff; margin-top: 1rem;">Solte o backup JSON aqui!</h2>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer">
+        <!-- Sidebar para Presets -->
+        <aside class="sidebar">
+            <h3>Presets Mágicos</h3>
+            <p style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem;">Selecione um preset para aplicar em TODOS os itens carregados.</p>
+            <div id="presetList" class="preset-list">
+                <!-- Presets renderizados via JS -->
+            </div>
+            
+            <div style="margin-top: 2rem;">
+                <button class="btn btn-secondary" style="width: 100%;" id="importBtn">UPLOAD BACKUP</button>
+                <button class="btn" style="width: 100%; margin-top: 0.5rem;" id="exportBtn">EXPORT LUA</button>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <header>
+                <div class="title">Equipment Editor Pro</div>
+                <div class="filters-bar">
+                    <div class="search-field">
+                        <input type="text" id="searchInput" placeholder="Search por nome, id ou categoria...">
+                    </div>
+                </div>
+            </header>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Image</th>
+                            <th style="width: 80px;">ID</th>
+                            <th>Name</th>
+                            <th>License</th>
+                            <th>Category</th>
+                            <th>Elements</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 5rem; color: #94a3b8;">
+                                Carregue o JSON para começar Ivalice!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <input type="file" id="fileInput" style="display:none" accept=".json">
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span id="modalItemName" style="font-size: 1.25rem; font-weight: 700;">Name</span>
+                    <span id="modalItemCat" style="background: #312e81; color: #c4b5fd; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.5rem;">Category</span>
+                </div>
+                <button id="closeModal" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="details">Details</button>
+                <button class="tab-btn" data-tab="attributes">Attributes</button>
+                <button class="tab-btn" data-tab="augment">Augments</button>
+                <button class="tab-btn" data-tab="on-equip">On-Equip</button>
+                <button class="tab-btn" data-tab="immunity">Immunity</button>
+                <button class="tab-btn" data-tab="affinity">Affinity</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="tab-pane active" id="detailsTab">
+                    <div style="display: flex; gap: 2rem;">
+                        <img id="modalItemImg" src="" style="width: 150px; height: 150px; background: #000; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="scale-input"><label>Name</label><span id="detailName" style="color: var(--gold); font-weight:700;">-</span></div>
+                            <div class="scale-input"><label>Category</label><span id="detailCategory">-</span></div>
+                            <div class="scale-input"><label>License</label><span id="detailLicense">-</span></div>
+                            <div class="scale-input"><label>ID</label><span id="detailID">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane" id="attributesTab">
+                    <div id="attributesList"></div>
+                </div>
+
+                <div class="tab-pane" id="augmentTab">
+                    <div id="augmentsList" class="grid-selector"></div>
+                </div>
+
+                <div class="tab-pane" id="onEquipTab">
+                    <div id="onEquipList" class="grid-selector"></div>
+                </div>
+
+                <div class="tab-pane" id="immunityTab">
+                    <div id="immunityList" class="grid-selector"></div>
+                </div>
+
+                <div class="tab-pane" id="affinityTab">
+                    <div id="affinityList">
+                        <!-- Affinity specific layout -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="discardBtn">Discard</button>
+                <button class="btn" id="saveBtn">Save Item</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
