@@ -304,13 +304,10 @@ tbody tr.active-row td:first-child {
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0.75rem;
-    background: var(--void);
-    border: 1px solid var(--border);
     color: var(--magitek);
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 600;
-    transition: border-color 0.2s;
 }
 
 .category-badge.badge-weapon    { color: oklch(0.78 0.14 55);  border-color: oklch(0.78 0.14 55 / 0.35); }
@@ -814,3 +811,104 @@ input[type=range]:focus::-webkit-slider-runnable-track {
     0%, 100% { opacity: 0.35; transform: translateY(0) scale(1); }
     50%       { opacity: 0.65; transform: translateY(-6px) scale(1.04); }
 }
+
+/* === Front 1 — Preset Preview Overlay === */
+.preset-preview-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s, visibility 0s 0.2s;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+}
+.preset-preview-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: none;
+    transition: opacity 0.2s, visibility 0s 0s;
+}
+
+/* === Front 2.1 — Scale Canvas Chart === */
+.scale-canvas {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+/* === Front 2.3 — Radar Chart === */
+.radar-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+.radar-title {
+    font-family: var(--font-heading);
+    color: var(--gold);
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+.radar-container {
+    display: flex;
+    justify-content: center;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+/* === Validation UI === */
+.validation-panel {
+    padding: 1rem 2rem;
+    border-top: 1px solid var(--border);
+    background: var(--void);
+}
+.validation-section.ok {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: #22c55e;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+.validation-section.ok span {
+    display: block;
+}
+.validation-flat-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.validation-flat-list li {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(148,163,184,0.1);
+}
+.validation-badge {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    cursor: help;
+    white-space: nowrap;
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+}
+
+tbody tr.has-issues td:first-child {
+    box-shadow: inset 3px 0 0 #eab308 !important;
+}
+

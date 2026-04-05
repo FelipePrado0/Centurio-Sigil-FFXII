@@ -36,32 +36,52 @@ const CATEGORY_COLORS = {
     "Accessory":        "badge-accessory"
 };
 
-const CATEGORY_EMOJIS = {
-    "Unarmed": "\uD83E\uDD1D", 
-    "One-Handed Sword": "\u2694\uFE0F", 
-    "Sword": "\u2694\uFE0F", 
-    "Two-Handed Sword": "\u2694\uFE0F",
-    "Axe": "\uD83E\uDE93", 
-    "Hammer": "\uD83D\uDD28", 
-    "Dagger": "\uD83D\uDDE1\uFE0F", 
-    "Mace": "\u2692\uFE0F", 
-    "Measure": "\uD83D\uDCCF",
-    "Hand-bomb": "\uD83D\uDCA3", 
-    "Katana": "\uD83D\uDDE1\uFE0F", 
-    "Ninja Sword": "\uD83D\uDDE1\uFE0F", 
-    "Spear": "\uD83D\uDD31",
-    "Pole": "\uD83E\uDDAF", 
-    "Rod": "\uD83E\uDE84", 
-    "Staff": "\uD83E\uDDD9", 
-    "Bow": "\uD83C\uDFF9", 
-    "Crossbow": "\uD83C\uDFF9",
-    "Gun": "\uD83D\uDD2B", 
-    "Shield": "\uD83D\uDEE1\uFE0F", 
-    "Heavy Armor": "\uD83C\uDFE0", 
-    "Light Armor": "\uD83D\uDC55",
-    "Mystic Armor": "\uD83E\uDDE5", 
-    "Accessory": "\uD83D\uDC8D"
+const CATEGORY_ICONS = {
+    "Unarmed":          "unarmed.webp",
+    "One-Handed Sword": "sword.webp",
+    "Sword":            "sword.webp",
+    "Two-Handed Sword": "greatsword.webp",
+    "Axe":              "axe.webp",
+    "Hammer":           "hammer.webp",
+    "Dagger":           "dagger.webp",
+    "Mace":             "mace.webp",
+    "Measure":          "measure.webp",
+    "Hand-bomb":        "hand_bomb.webp",
+    "Katana":           "katana.webp",
+    "Ninja Sword":      "ninja_sword.webp",
+    "Spear":            "spear.webp",
+    "Pole":             "pole.webp",
+    "Rod":              "rod.webp",
+    "Staff":            "staff.webp",
+    "Bow":              "bow.webp",
+    "Crossbow":         "crossbow.webp",
+    "Gun":              "gun.webp",
+    "Shield":           "shield.webp",
+    "Heavy Armor":      "heavy_armor.webp",
+    "Light Armor":      "light_armor.webp",
+    "Mystic Armor":     "mystic_armor.webp",
+    "Accessory":        "accessory.webp"
 };
+
+function getCategoryIcon(category, size = 16) {
+    if (!CATEGORY_ICONS[category]) return null;
+    const dirMap = {
+        "Unarmed": "weapons", "One-Handed Sword": "weapons", "Sword": "weapons",
+        "Two-Handed Sword": "weapons", "Axe": "weapons", "Hammer": "weapons",
+        "Dagger": "weapons", "Mace": "weapons", "Measure": "weapons",
+        "Hand-bomb": "weapons", "Katana": "weapons", "Ninja Sword": "weapons",
+        "Spear": "weapons", "Pole": "weapons", "Rod": "weapons", "Staff": "weapons",
+        "Bow": "weapons", "Crossbow": "weapons", "Gun": "weapons",
+        "Shield": "armors", "Heavy Armor": "armors", "Light Armor": "armors",
+        "Mystic Armor": "armors", "Accessory": "accessories"
+    };
+    const dir = dirMap[category] || "accessories";
+    const file = CATEGORY_ICONS[category];
+    const encoded = encodeURIComponent(`/assets/equipments/${dir}/${file}`);
+    return `https://xii-equipment-editor.vercel.app/_next/image?url=${encoded}&w=${size * 2}&q=75`;
+}
+
+
 
 const ALL_STATUS = [
     "Protect", "Shell", "Haste", "Bravery", "Faith", "Regen", "Invisible", "Float", "Reflect",
@@ -182,39 +202,346 @@ const TRANSLATIONS = {
     }
 };
 
+/* === VALIDATION SYSTEM === */
+
+function validateItem(item) {
+    const issues = [];
+    if (!item.attr) return issues;
+
+    const isGun = item.category === 'Gun';
+
+    for (let key in item.attr) {
+        const scale = item.attr[key].scale;
+        if (!scale || scale.length < 13) continue;
+        const base = scale[0];
+
+        // Cap 255
+        for (let i = 1; i <= 12; i++) {
+            if (scale[i] > 255) {
+                issues.push(`${ATTR_NAMES[key]||key} Lv${i} = ${scale[i]} exceeds 255 cap`);
+            }
+        }
+
+        if (key === 'atk') {
+            const atk12 = scale[12];
+            const lastNonZero = (() => { for(let i=1;i<=12;i++){ if(scale[i]>base) return i; } return 0; })();
+
+            if (atk12 <= base) {
+                issues.push(`ATK Lv12 (${atk12}) ≤ base (${base}) — no growth`);
+            }
+
+            if (atk12 < base * 1.25 && atk12 > base) {
+                issues.push(`ATK Lv12 is only ${((atk12/base)*100).toFixed(0)}% of base (< 125%)`);
+            }
+
+            const isLegendary = atk12 > 200;
+            if (atk12 > 155 && !isLegendary) {
+                issues.push(`ATK Lv12 = ${atk12} > 155 (non-legendary range)`);
+            }
+
+            if (atk12 > 200) {
+                issues.push(`ATK Lv12 = ${atk12} exceeds legendary threshold (200)`);
+            }
+
+            if (isGun && lastNonZero > 0) {
+                const maxAtk = Math.max(...scale.slice(1));
+                const increase = ((maxAtk - base) / base) * 100;
+                if (increase > 80) {
+                    issues.push(`Gun ATK increased ${increase.toFixed(0)}% over base (> 80% — damage formula squared!)`);
+                }
+            }
+        }
+    }
+
+    return issues;
+}
+
+function validateAllItems() {
+    if (!originalData) return [];
+    return originalData.map(item => ({
+        item,
+        issues: validateItem(item)
+    })).filter(r => r.issues.length > 0);
+}
+
+/* === VALIDATION UI === */
+
+function renderValidationBadges() {
+    document.querySelectorAll('#itemBody tr:not(.empty-row)').forEach(tr => {
+        const btn = tr.querySelector('.edit-btn');
+        if (!btn) return;
+        const id = parseInt(btn.dataset.id, 10);
+        const item = originalData?.find(i => i.id === id);
+        if (!item) return;
+        const issues = validateItem(item);
+        if (issues.length === 0) {
+            tr.classList.remove('has-issues');
+            const existingBadge = tr.querySelector('.validation-badge');
+            if (existingBadge) existingBadge.remove();
+        } else {
+            tr.classList.add('has-issues');
+            let badge = tr.querySelector('.validation-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'validation-badge';
+                btn.before(badge);
+            }
+            badge.textContent = `⚠️ ${issues.length}`;
+            badge.title = issues.join('\n');
+        }
+    });
+}
+
+function renderValidationPanel() {
+    if (!currentItem) return;
+    const issues = validateItem(currentItem);
+    const existing = document.getElementById('validationPanel');
+    const footer = document.querySelector('.modal-footer');
+    if (!existing && issues.length === 0) return;
+
+    let panel = existing;
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'validationPanel';
+        panel.className = 'validation-panel';
+        footer.parentNode.insertBefore(panel, footer);
+    }
+
+    if (issues.length === 0) {
+        panel.innerHTML = `<div class="validation-section ok"><span>All checks passed — item is within balanced limits.</span></div>`;
+    } else {
+        let html = '<ul class="validation-flat-list">';
+        issues.forEach(msg => { html += `<li>⚠️ ${msg}</li>`; });
+        html += '</ul>';
+        panel.innerHTML = html;
+    }
+}
+
+function showGlobalValidationReport() {
+    const t = TRANSLATIONS[currentLang];
+    const results = validateAllItems();
+    if (results.length === 0) {
+        showNotification(currentLang === 'pt' ? 'Todos os itens passam nas validações.' : 'All items pass validation checks.', 'success');
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'validationReportModal';
+
+    let html = `<div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h2>${currentLang === 'pt' ? 'Relatório de Validação' : 'Validation Report'}</h2>
+            <button onclick="closeGlobalValidationReport()" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:2rem;">&times;</button>
+        </div>
+        <div class="modal-body">`;
+
+    // Group by error/warning type
+    const grouped = {};
+    results.forEach(r => {
+        [...r.errors, ...r.warnings].forEach(issue => {
+            const key = issue.rule;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push({ item: r.item, issue });
+        });
+    });
+
+    const ruleLabels = {
+        overpowered: currentLang === 'pt' ? 'ATK Sobrecarregado' : 'ATK Overpowered',
+        legendary_atk: currentLang === 'pt' ? 'ATK Lendário' : 'ATK Legendary',
+        gun_spike: 'Gun Spike',
+        underpowered: currentLang === 'pt' ? 'Fraco Demais' : 'Underpowered',
+        minimal_growth: currentLang === 'pt' ? 'Crescimento Mínimo' : 'Minimal Growth',
+        regressive: currentLang === 'pt' ? 'Escala Regressiva' : 'Regressive Scale',
+        stat_cap: currentLang === 'pt' ? 'Cap de Atributo' : 'Stat Cap',
+        tier_inversion: currentLang === 'pt' ? 'Inversão de Tier' : 'Tier Inversion'
+    };
+
+    for (const rule in grouped) {
+        const items = grouped[rule];
+        const isCritical = items.some(g => g.issue.rule && ['overpowered','legendary_atk','gun_spike','stat_cap'].includes(g.issue.rule));
+        html += `<div class="validation-section ${isCritical ? 'critical' : 'warning'}" style="margin-bottom:1rem;">
+            <div class="validation-header">
+                <span class="validation-title">${ruleLabels[rule] || rule} (${items.length})</span>
+            </div><ul>`;
+        items.slice(0, 10).forEach(g => {
+            html += `<li><a href="#" class="validation-item-link" data-id="${g.item.id}" onclick="navigateToItem(${g.item.id});event.preventDefault();">${g.item.name} (Lv12: ${g.item.attr['atk']?.scale[12] ?? '—'})</a> — ${g.issue.msg}</li>`;
+        });
+        if (items.length > 10) html += `<li>...and ${items.length - 10} more</li>`;
+        html += `</ul></div>`;
+    }
+
+    html += `</div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeGlobalValidationReport()">${currentLang === 'pt' ? 'Fechar' : 'Close'}</button>
+        </div>
+    </div>`;
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('active'), 10);
+}
+
+function closeGlobalValidationReport() {
+    const modal = document.getElementById('validationReportModal');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 400);
+    }
+}
+
+/* === RADAR CHART (Front 2.3) === */
+
+function renderRadarChart() {
+    if (!currentItem || !currentItem.attr) return;
+
+    const old = document.getElementById('radarChartSection');
+    if (old) old.remove();
+
+    const detailsTab = document.getElementById('detailsTab');
+    if (!detailsTab) return;
+
+    const RADAR_ATTRS = ['atk','def','str','mgk','spd','hp','evaw','cmb'];
+    const radarAttrs = RADAR_ATTRS.filter(k => currentItem.attr[k] && currentItem.attr[k].scale);
+    if (radarAttrs.length === 0) return;
+
+    const section = document.createElement('div');
+    section.id = 'radarChartSection';
+    section.className = 'radar-section';
+    section.innerHTML = `
+        <h3 class="radar-title">${currentLang === 'pt' ? 'Perfil no Nível 12' : 'Level 12 Profile'}</h3>
+        <div class="radar-container">
+            <canvas id="radarChart" width="500" height="500"></canvas>
+        </div>`;
+
+    const flexSection = detailsTab.querySelector('div[style*="display"]');
+    if (flexSection) flexSection.after(section);
+
+    requestAnimationFrame(() => drawRadarChart(radarAttrs));
+}
+
+function drawRadarChart(attrs) {
+    const canvas = document.getElementById('radarChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const size = 500;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    ctx.scale(dpr, dpr);
+
+    const cx = size / 2, cy = size / 2;
+    const R = 200;
+    const n = attrs.length;
+    const getXY = (i, r) => {
+        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+        return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+    };
+
+    // Get values at level 12
+    const values = attrs.map(k => currentItem.attr[k].scale[12] ?? currentItem.attr[k].scale[0]);
+    const maxVal = Math.max(...values, 1);
+
+    // Grid rings
+    ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+    ctx.lineWidth = 1;
+    for (let ring = 1; ring <= 4; ring++) {
+        const r = (ring / 4) * R;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const [x, y] = getXY(i, r);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    // Spokes
+    for (let i = 0; i < n; i++) {
+        const [x, y] = getXY(i, R);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+    }
+
+    // Data fill
+    const catColor = CATEGORY_COLORS[currentItem.category] || 'badge-weapon';
+    const colorMap = {
+        'badge-weapon': '#f97316', 'badge-ranged': '#22c55e', 'badge-magic': '#7cd3fc',
+        'badge-shield': '#8b5cf6', 'badge-armor': '#a855f7', 'badge-accessory': '#ffd700', 'badge-unarmed': '#64748b'
+    };
+    const color = colorMap[catColor] || '#7cd3fc';
+
+    ctx.fillStyle = color + '22';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        const r = (values[i] / maxVal) * R;
+        const [x, y] = getXY(i, r);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '12px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+        const [lx, ly] = getXY(i, R + 20);
+        ctx.fillText((ATTR_NAMES[attrs[i]] || attrs[i]).substring(0, 3), lx, ly);
+    }
+}
+
+function navigateToItem(id) {
+    closeGlobalValidationReport();
+    openEditModal(id);
+}
+
+const GUN_WEAPON_CATEGORIES = ['Gun'];
+const WEAPON_CATEGORIES = ['One-Handed Sword','Sword','Two-Handed Sword','Axe','Hammer','Dagger','Mace','Measure','Katana','Ninja Sword','Spear','Pole','Hand-bomb','Bow','Crossbow','Gun','Rod','Staff'];
+
+/* === VALIDATION SYSTEM END === */
+
+function computeGrowthAt12(logic) {
+    return (((logic(100, 12) - 100) / 100) * 100).toFixed(0);
+}
+
 const PRESETS = [
-    { name: "Centurio: Vanguard", en: "Mid-game focus (+7% per lv)", pt: "Foco em mid-game (+7% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.07)) },
-    { name: "Centurio: Knight", en: "Imperial might (+10% per lv)", pt: "Poder Imperial (+10% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.10)) },
-    { name: "Dalmascan Dawn", en: "Linear balance (+4% per lv)", pt: "Equil\u00EDbrio Linear (+4% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.0416)) },
+    { name: "Centurio: Vanguard", en: "Mid-game focus (+7% per lv)", pt: "Foco em mid-game (+7% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.07)) },
+    { name: "Centurio: Knight", en: "Imperial might (+10% per lv)", pt: "Poder Imperial (+10% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.10)) },
+    { name: "Dalmascan Dawn", en: "Linear balance (+4% per lv)", pt: "Equilíbrio Linear (+4% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.0416)) },
     { name: "Bahamut's Ire", en: "Exponential end-game scaler", pt: "Escalonamento exponencial de fim de jogo", logic: (v, lv) => Math.max(v, Math.floor(v * Math.pow(1.06, lv))) },
     { name: "Vayne's Ambition", en: "Absolute power (+15% base)", pt: "Poder absoluto (+15% base)", logic: (v, lv) => Math.floor(v * 1.15 + lv * 3) },
-    { name: "Balthier's Luck", en: "Speed & Crits (+8% per lv)", pt: "Velocidade e Cr\u00EDticos (+8% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.08)) },
-    { name: "Ashe's Ether", en: "Magick focus (+6.5% per lv)", pt: "Foco em Magia (+6.5% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.065)) },
-    { name: "Basch's Wall", en: "Tank Meta (+7.5% per lv)", pt: "Meta de Tank (+7.5% por n\u00EDvel)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.075)) },
-    { name: "Viera's Grace", en: "Charge acceleration (+5%)", pt: "Acelera\u00E7\u00E3o de carga (+5%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.05)) },
-    { name: "Bangaa Rage", en: "Unstable damage (+12%)", pt: "Dano inst\u00E1vel (+12%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.12)) },
-    { name: "Zodiark's Shadow", en: "Chaotic scaling (Random variance)", pt: "Escalonamento Ca\u00F3tico (Vari\u00E2ncia aleat\u00F3ria)", logic: (v, lv) => { 
-        let c = v; for(let i=1;i<=lv;i++) c+=Math.floor(c*(0.03 + Math.random()*0.12)); return c;
-    }},
+    { name: "Balthier's Luck", en: "Speed & Crits (+8% per lv)", pt: "Velocidade e Críticos (+8% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.08)) },
+    { name: "Ashe's Ether", en: "Magick focus (+6.5% per lv)", pt: "Foco em Magia (+6.5% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.065)) },
+    { name: "Basch's Wall", en: "Tank Meta (+7.5% per lv)", pt: "Meta de Tank (+7.5% por nível)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.075)) },
+    { name: "Viera's Grace", en: "Charge acceleration (+5%)", pt: "Aceleração de carga (+5%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.05)) },
+    { name: "Bangaa Rage", en: "Unstable damage (+12%)", pt: "Dano instável (+12%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.12)) },
+    { name: "Zodiark's Shadow", en: "Chaotic scaling (Random variance)", pt: "Escalonamento Caótico (Variância aleatória)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.10 + ((lv * 337) % 10) * 0.01)) },
     { name: "Occuria's Blessing", en: "Divine stats (+20% base)", pt: "Status Divinos (+20% base)", logic: (v, lv) => Math.floor(v * 1.20 + (v * 0.02 * lv)) },
-    { name: "Minstrel's Ballad", en: "Utility focus (MP/SPD balance)", pt: "Foco em utilidade (Equil\u00EDbrio MP/SPD)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.055)) },
+    { name: "Minstrel's Ballad", en: "Utility focus (MP/SPD balance)", pt: "Foco em utilidade (Equilíbrio MP/SPD)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.055)) },
     { name: "Imperial Judge", en: "Heavy Armor expert (+12% DEF)", pt: "Especialista em Armadura Pesada (+12% DEF)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.12)) },
-    { name: "Yansa's Speed", en: "Max evasion and agility (+15% SPD)", pt: "Evas\u00E3o m\u00E1xima e agilidade (+15% SPD)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.15)) },
-    { name: "Phon Coast Breeze", en: "Balanced natural progression", pt: "Progress\u00E3o natural equilibrada", logic: (v, lv) => Math.floor(v * (1 + lv * 0.048)) },
-    { name: "Cerobi Steppe Hunter", en: "Ranged damage specialist (+9%)", pt: "Especialista em dano \u00E0 dist\u00E2ncia (+9%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.09)) },
-    { name: "Gilgamesh's Fakes", en: "High variance, legendary potential", pt: "Alta vari\u00E2ncia, potencial lend\u00E1rio", logic: (v, lv) => Math.floor(v * (0.5 + Math.random() * 1.5 + lv * 0.05)) },
+    { name: "Yansa's Speed", en: "Max evasion and agility (+15% SPD)", pt: "Evasão máxima e agilidade (+15% SPD)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.15)) },
+    { name: "Phon Coast Breeze", en: "Balanced natural progression", pt: "Progressão natural equilibrada", logic: (v, lv) => Math.floor(v * (1 + lv * 0.048)) },
+    { name: "Cerobi Steppe Hunter", en: "Ranged damage specialist (+9%)", pt: "Especialista em dano à distância (+9%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.09)) },
+    { name: "Gilgamesh's Fakes", en: "High variance, legendary potential", pt: "Alta variância, potencial lendário", logic: (v, lv) => Math.floor(v * (1 + lv * 0.12 + ((lv * 211) % 10) * 0.01)) },
     { name: "Montblanc's Favor", en: "Clan-based steady growth", pt: "Crescimento constante do Clan", logic: (v, lv) => Math.floor(v * (1 + lv * 0.06)) },
     { name: "Gabranth's Justice", en: "High risk/reward (+18% scaling)", pt: "Alto risco/recompensa (+18% escala)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.18)) },
     { name: "Fran's Instinct", en: "Late-game spike (Exponential)", pt: "Pico de fim de jogo (Exponencial)", logic: (v, lv) => Math.floor(v * Math.pow(1.08, lv)) },
     { name: "Reddas's Sacrifice", en: "High initial burst, low scaling", pt: "Alto poder inicial, baixo escalonamento", logic: (v, lv) => Math.floor(v * 1.5 + lv * 1) },
     { name: "Larsa's Potion", en: "Vitality and HP focus (+11%)", pt: "Foco em Vitalidade e HP (+11%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.11)) },
-    { name: "Cid's Invention", en: "Technical step scaling (+5 per step)", pt: "Escalonamento t\u00E9cnico (+5 por degrau)", logic: (v, lv) => v + (lv * 5) },
-    { name: "Nalbina Grit", en: "Raw strength and endurance (+13%)", pt: "For\u00E7a bruta e resist\u00EAncia (+13%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.13)) },
-    { name: "Rabanastre Streetwise", en: "Evasion and Crit combo focus", pt: "Foco em combo de Evas\u00E3o e Cr\u00EDtico", logic: (v, lv) => Math.floor(v * (1 + lv * 0.085)) },
-    { name: "Sky Pirate's Freedom", en: "Unpredictable wind-based scaling", pt: "Escalonamento imprevis\u00EDvel do vento", logic: (v, lv) => Math.floor(v * (1 + lv * (0.02 + Math.random() * 0.1))) },
+    { name: "Cid's Invention", en: "Technical step scaling (+5 per step)", pt: "Escalonamento técnico (+5 por degrau)", logic: (v, lv) => v + (lv * 5) },
+    { name: "Nalbina Grit", en: "Raw strength and endurance (+13%)", pt: "Força bruta e resistência (+13%)", logic: (v, lv) => Math.floor(v * (1 + lv * 0.13)) },
+    { name: "Rabanastre Streetwise", en: "Evasion and Crit combo focus", pt: "Foco em combo de Evasão e Crítico", logic: (v, lv) => Math.floor(v * (1 + lv * 0.085)) },
+    { name: "Sky Pirate's Freedom", en: "Unpredictable wind-based scaling", pt: "Escalonamento imprevisível do vento", logic: (v, lv) => Math.floor(v * (1 + lv * 0.08 + ((lv * 193) % 10) * 0.005)) },
     { name: "Chaos's Whisper", en: "Dark magick extreme scaling", pt: "Escalonamento extremo de magia negra", logic: (v, lv) => Math.floor(v * (1 + lv * 0.14)) },
     { name: "Ultima's Radiance", en: "Holy/Magick pinnacle scaling", pt: "Pico de escalonamento Holy/Magia", logic: (v, lv) => Math.floor(v * (1 + lv * 0.16)) },
-    { name: "Wyrm Hero's Soul", en: "Ultimate end-game perfection", pt: "Perfei\u00E7\u00E3o definitiva de fim de jogo", logic: (v, lv) => Math.floor(v * (1 + lv * 0.20)) }
+    { name: "Wyrm Hero's Soul", en: "Ultimate end-game perfection", pt: "Perfeição definitiva de fim de jogo", logic: (v, lv) => Math.floor(v * (1 + lv * 0.20)) }
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -418,12 +745,14 @@ function renderTable() {
         const tr = document.createElement('tr');
         tr.style.animationDelay = `${Math.min(index * 0.05, 1)}s`;
         const imgUrl = `https://xii-equipment-editor.vercel.app/_next/image?url=%2Fassets%2Fpreviews%2Fitem_${item.bit}.webp&w=128&q=75`;
-        const emoji = CATEGORY_EMOJIS[item.category] || "\uD83D\uDCE6";
+        const catIcon = getCategoryIcon(item.category);
         const colorClass = CATEGORY_COLORS[item.category] || '';
-        tr.innerHTML = `<td><img src="${imgUrl}" style="width:48px;height:48px;object-fit:contain;background:var(--void);border:1px solid var(--border);border-radius:8px;" onerror="this.onerror=null; this.src='https://via.placeholder.com/48?text=?'"></td><td class="id-cell">${item.id}</td><td class="name-cell">${item.name}</td><td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">${item.license || '-'}</td><td><div class="category-badge ${colorClass}"><span>${emoji}</span> ${item.category}</div></td><td>${renderElements(item.element ? item.element.value : [])}</td><td><button class="edit-btn" data-id="${item.id}">${t.btn_configure}</button></td>`;
+        const catIconHtml = catIcon ? `<img src="${catIcon}" style="width:16px;height:16px;object-fit:contain;" onerror="this.style.display='none'">` : '';
+        tr.innerHTML = `<td><img src="${imgUrl}" style="width:48px;height:48px;object-fit:contain;" onerror="this.onerror=null; this.src='https://placehold.co/48x48/1a1a1a/8521e2?text=?'"></td><td class="id-cell">${item.id}</td><td class="name-cell">${item.name}</td><td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">${item.license || '-'}</td><td><div class="category-badge ${colorClass}">${catIconHtml} ${item.category}</div></td><td>${renderElements(item.element ? item.element.value : [])}</td><td><button class="edit-btn" data-id="${item.id}">${t.btn_configure}</button></td>`;
         fragment.appendChild(tr);
     });
     tbody.appendChild(fragment);
+    renderValidationBadges();
 }
 
 function renderElements(elements) {
@@ -443,13 +772,14 @@ function renderElements(elements) {
 function filterData(query) {
     if(!originalData) return;
     const q = query.toLowerCase();
-    filteredData = originalData.filter(i => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || i.id.toString().includes(q));
+    let data = originalData.filter(i => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || i.id.toString().includes(q));
+    filteredData = data;
     renderTable();
 }
 
 function openEditModal(id) {
     if(!originalData) return;
-    currentItem = JSON.parse(JSON.stringify(originalData.find(i => i.id === id))); 
+    currentItem = JSON.parse(JSON.stringify(originalData.find(i => i.id === id)));
     if (!currentItem) return;
     currentItem.onequip = currentItem.onequip || { value: [], scale: [] };
     currentItem.immunity = currentItem.immunity || { value: [], scale: [] };
@@ -458,9 +788,15 @@ function openEditModal(id) {
     const modalName = document.getElementById('modalItemName');
     if(modalName) modalName.textContent = currentItem.name;
     const modalCat = document.getElementById('modalItemCat');
-    if(modalCat) modalCat.innerHTML = `<span>${CATEGORY_EMOJIS[currentItem.category] || "\uD83D\uDCE6"}</span> ${currentItem.category}`;
+    const modalCatIcon = getCategoryIcon(currentItem.category);
+    const modalCatIconHtml = modalCatIcon ? `<img src="${modalCatIcon}" style="width:16px;height:16px;object-fit:contain;" onerror="this.style.display='none'">` : '';
+    if(modalCat) modalCat.innerHTML = `${modalCatIconHtml} ${currentItem.category}`;
     const modalImg = document.getElementById('modalItemImg');
-    if(modalImg) modalImg.src = `https://xii-equipment-editor.vercel.app/_next/image?url=%2Fassets%2Fpreviews%2Fitem_${currentItem.bit}.webp&w=384&q=75`;
+    if(modalImg) {
+        modalImg.src = `https://xii-equipment-editor.vercel.app/_next/image?url=%2Fassets%2Fpreviews%2Fitem_${currentItem.bit}.webp&w=384&q=75`;
+        const fallbackCat = getCategoryIcon(currentItem.category, 192);
+        modalImg.onerror = function() { this.onerror=null; this.src=fallbackCat; };
+    }
     const dName = document.getElementById('detailName');
     if(dName) dName.value = currentItem.name;
     const dCat = document.getElementById('detailCategory');
@@ -474,6 +810,8 @@ function openEditModal(id) {
     renderStatusSelectors('immunityList', currentItem.immunity.value);
     renderAugmentSelectors(currentItem.augments.value || []);
     renderAffinityGrid(currentItem.affinity.value || {});
+    renderRadarChart();
+    renderValidationPanel();
 
     document.querySelectorAll('tbody tr.active-row').forEach(r => r.classList.remove('active-row'));
     const activeRow = document.querySelector(`.edit-btn[data-id="${id}"]`)?.closest('tr');
@@ -495,7 +833,9 @@ function renderAttributeGrids() {
         const group = document.createElement('div');
         group.className = 'attr-group';
         const displayName = ATTR_NAMES[key] || key.toUpperCase();
-        let html = `<div class="attr-title"><span>${displayName}</span> <small style="color:var(--text-secondary);">${t.vanilla_base}: ${attr.scale[0]}</small></div><div class="scale-grid">`;
+        let html = `<div class="attr-title"><span>${displayName}</span> <small style="color:var(--text-secondary);">${t.vanilla_base}: ${attr.scale[0]}</small></div>`;
+        html += `<canvas id="chart-${key}" class="scale-canvas" width="900" height="200"></canvas>`;
+        html += `<div class="scale-grid">`;
         attr.scale.forEach((val, lv) => { html += `<div class="scale-input"><label>${lv === 0 ? t.base : t.level + ' ' + lv}</label><input type="number" value="${val}" data-key="${key}" data-lv="${lv}" class="attr-input"></div>`; });
         html += `</div>`;
         group.innerHTML = html;
@@ -503,8 +843,18 @@ function renderAttributeGrids() {
     }
     list.appendChild(fragment);
     list.querySelectorAll('.attr-input').forEach(input => {
-        input.addEventListener('change', e => updateAttr(e.target.dataset.key, parseInt(e.target.dataset.lv, 10), e.target.value));
+        input.addEventListener('input', e => {
+            updateAttr(e.target.dataset.key, parseInt(e.target.dataset.lv, 10), e.target.value);
+            // Redraw chart for this attribute
+            const key2 = e.target.dataset.key;
+            const canvas = document.getElementById(`chart-${key2}`);
+            if (canvas && currentItem.attr?.[key2]) drawMiniChart(canvas, currentItem.attr[key2].scale);
+            // Refresh validation panel
+            renderValidationPanel();
+        });
     });
+    // Draw all charts
+    requestAnimationFrame(() => renderMiniCharts());
 }
 
 function updateAttr(key, lv, val) { if(currentItem && currentItem.attr[key]) currentItem.attr[key].scale[lv] = parseInt(val) || 0; }
@@ -598,12 +948,15 @@ function renderPresetsSidebar() {
     const list = document.getElementById('presetList');
     if(!list) return;
     list.innerHTML = '';
+
     const fragment = document.createDocumentFragment();
     const t = TRANSLATIONS[currentLang];
+
     PRESETS.forEach(p => {
         const card = document.createElement('div');
         card.className = 'preset-card';
         card.innerHTML = `<div class="name">${p.name}</div><div class="desc">${p[currentLang]}</div>`;
+
         card.onclick = () => {
             if (!originalData) return showNotification(t.notify_no_data, 'error');
             if (confirm(t.confirm_paradigm)) {
@@ -621,9 +974,212 @@ function renderPresetsSidebar() {
                 showNotification(t.notify_paradigm_enforced, 'success');
             }
         };
+
+        card.addEventListener('mouseenter', () => renderPresetPreview(p));
+        card.addEventListener('mouseleave', hidePresetPreview);
+
         fragment.appendChild(card);
     });
+
     list.appendChild(fragment);
+}
+
+function renderPresetPreview(preset) {
+    let overlay = document.getElementById('presetPreviewOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'presetPreviewOverlay';
+        overlay.className = 'preset-preview-overlay';
+        overlay.innerHTML = `<canvas id="presetPreviewCanvas"></canvas>`;
+        document.body.appendChild(overlay);
+    }
+
+    overlay.classList.add('active');
+
+    // Use the currently open modal item if available, otherwise first data item
+    let sampleItem = currentItem || (originalData && originalData[0]);
+    if (!sampleItem) return;
+
+    const canvas = document.getElementById('presetPreviewCanvas');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    
+    const W = Math.min(window.innerWidth * 0.8, 1000);
+    const H = Math.min(window.innerHeight * 0.6, 600);
+
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 60, padR = 20, padT = 20, padB = 40;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+
+    // Collect values
+    const baseVal = sampleItem.attr?.atk?.scale[0] ?? 50;
+    const currentVals = [];
+    const previewVals = [];
+    for (let lv = 0; lv <= 12; lv++) {
+        currentVals.push(sampleItem.attr?.atk?.scale[lv] ?? baseVal);
+        if (lv === 0) {
+            previewVals.push(baseVal);
+        } else {
+            previewVals.push(Math.min(255, preset.logic(baseVal, lv)));
+        }
+    }
+
+    const allVals = [...currentVals, ...previewVals];
+    const minV = Math.min(...allVals);
+    const maxV = Math.max(...allVals);
+    const range = maxV - minV || 1;
+
+    const x = (lv) => padL + (lv / 12) * chartW;
+    const y = (v) => padT + (1 - (v - minV) / range) * chartH;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(148,163,184,0.1)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i <= 4; i++) {
+        const gy = padT + (i/4) * chartH;
+        ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(W - padR, gy); ctx.stroke();
+        
+        // Y labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px JetBrains Mono, monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.round(maxV - (i/4)*range), padL - 10, gy + 4);
+    }
+
+    // X labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '14px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    for (let lv = 0; lv <= 12; lv += 3) ctx.fillText(`Lv${lv}`, x(lv), H - 10);
+
+    // Base line
+    ctx.strokeStyle = '#64748b';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(baseVal));
+    ctx.lineTo(x(12), y(baseVal));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Current curve
+    ctx.strokeStyle = '#7cd3fc';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    currentVals.forEach((v, lv) => { lv === 0 ? ctx.moveTo(x(lv), y(v)) : ctx.lineTo(x(lv), y(v)); });
+    ctx.stroke();
+
+    // Preview curve
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    previewVals.forEach((v, lv) => { lv === 0 ? ctx.moveTo(x(lv), y(v)) : ctx.lineTo(x(lv), y(v)); });
+    ctx.stroke();
+
+    // Legend
+    ctx.font = '14px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7cd3fc';
+    ctx.fillRect(W - 200, 20, 16, 16);
+    ctx.fillText(currentLang === 'pt' ? 'Atual' : 'Current', W - 170, 33);
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillRect(W - 200, 45, 16, 16);
+    ctx.fillText(preset.name.substring(0, 20), W - 170, 58);
+}
+
+function hidePresetPreview() {
+    const overlay = document.getElementById('presetPreviewOverlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+/* === MINI CHART FOR SCALING TAB (Front 2.1) === */
+
+function renderMiniCharts() {
+    if (!currentItem || !currentItem.attr) return;
+    for (let key in currentItem.attr) {
+        const scale = currentItem.attr[key].scale;
+        if (!scale || scale.length < 13) continue;
+        const canvas = document.getElementById(`chart-${key}`);
+        if (!canvas) continue;
+        drawMiniChart(canvas, scale);
+    }
+}
+
+function drawMiniChart(canvas, scale) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 35, padR = 5, padT = 10, padB = 20;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+
+    const minV = Math.min(...scale);
+    const maxV = Math.max(...scale);
+    const range = maxV - minV || 1;
+
+    const x = (i) => padL + (i / 12) * chartW;
+    const y = (v) => padT + (1 - (v - minV) / range) * chartH;
+
+    // Base line
+    ctx.strokeStyle = 'rgba(148,163,184,0.3)';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(scale[0]));
+    ctx.lineTo(x(12), y(scale[0]));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Area fill
+    const gradient = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+    gradient.addColorStop(0, 'rgba(124,211,252,0.15)');
+    gradient.addColorStop(1, 'rgba(124,211,252,0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(x(0), padT + chartH);
+    scale.forEach((v, i) => ctx.lineTo(x(i), y(v)));
+    ctx.lineTo(x(12), padT + chartH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Line
+    ctx.strokeStyle = '#7cd3fc';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    scale.forEach((v, i) => { i === 0 ? ctx.moveTo(x(i), y(v)) : ctx.lineTo(x(i), y(v)); });
+    ctx.stroke();
+
+    // Dots
+    scale.forEach((v, i) => {
+        ctx.fillStyle = '#7cd3fc';
+        ctx.beginPath();
+        ctx.arc(x(i), y(v), 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // X labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 12; i += 3) ctx.fillText(i, x(i), H - 3);
+
+    // Y labels
+    ctx.textAlign = 'right';
+    ctx.fillText(maxV, padL - 4, padT + 8);
+    ctx.fillText(minV, padL - 4, padT + chartH + 4);
 }
 
 function toggleModal(show) {
