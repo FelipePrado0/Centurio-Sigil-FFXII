@@ -1,0 +1,8 @@
+services:
+  equipment-editor:
+    build: .
+    container_name: ff12-equipment-editor
+    image: ff12/equipment-editor
+    ports:
+      - "12012:80"
+    restart: unless-stopped
