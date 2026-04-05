@@ -1,5 +1,5 @@
 /* XII Equipment Editor - Magitek Professional Design System */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=JetBrains+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap');
 
 :root {
     --void: oklch(0.18 0.03 260);
@@ -16,7 +16,7 @@
     --text-secondary: oklch(0.75 0.03 260);
     
     --font-heading: 'Cinzel', serif;
-    --font-body: 'Inter', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
     
     --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -269,12 +269,23 @@ td {
 }
 
 tbody tr {
-    animation: fadeUp 0.5s var(--ease-expo) forwards;
-    opacity: 0;
+    animation: fadeUp 0.4s var(--ease-expo) both;
 }
 
 tbody tr:hover td {
-    background: rgba(255,255,255,0.02);
+    background: rgba(124, 211, 252, 0.05);
+}
+
+tbody tr:hover td:first-child {
+    box-shadow: inset 3px 0 0 var(--magitek);
+}
+
+tbody tr.active-row td {
+    background: rgba(124, 211, 252, 0.07);
+}
+
+tbody tr.active-row td:first-child {
+    box-shadow: inset 3px 0 0 var(--gold);
 }
 
 .id-cell {
@@ -299,7 +310,16 @@ tbody tr:hover td {
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 600;
+    transition: border-color 0.2s;
 }
+
+.category-badge.badge-weapon    { color: oklch(0.78 0.14 55);  border-color: oklch(0.78 0.14 55 / 0.35); }
+.category-badge.badge-magic     { color: oklch(0.75 0.15 220); border-color: oklch(0.75 0.15 220 / 0.35); }
+.category-badge.badge-ranged    { color: oklch(0.75 0.16 145); border-color: oklch(0.75 0.16 145 / 0.35); }
+.category-badge.badge-shield    { color: oklch(0.72 0.10 245); border-color: oklch(0.72 0.10 245 / 0.35); }
+.category-badge.badge-armor     { color: oklch(0.70 0.12 280); border-color: oklch(0.70 0.12 280 / 0.35); }
+.category-badge.badge-accessory { color: oklch(0.85 0.12 75);  border-color: oklch(0.85 0.12 75 / 0.35);  }
+.category-badge.badge-unarmed   { color: oklch(0.60 0.04 260); border-color: oklch(0.60 0.04 260 / 0.35); }
 
 /* Buttons */
 .btn {
@@ -316,25 +336,11 @@ tbody tr:hover td {
     font-size: 0.85rem;
     letter-spacing: 0.05em;
     position: relative;
-    overflow: hidden;
-}
-
-.btn::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    transition: 0.5s;
-}
-
-.btn:hover::after {
-    left: 100%;
 }
 
 .btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -5px var(--magitek-glow);
+    box-shadow: 0 8px 24px -4px var(--magitek-glow), 0 0 0 1px var(--magitek);
 }
 
 .btn-secondary {
@@ -373,17 +379,21 @@ tbody tr:hover td {
     top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.6);
     backdrop-filter: blur(8px);
-    display: none;
+    display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
     opacity: 0;
-    transition: opacity 0.4s var(--ease-expo);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-expo), visibility 0s 0.4s;
 }
 
 .modal-overlay.active {
-    display: flex;
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.4s var(--ease-expo), visibility 0s 0s;
 }
 
 .modal-content {
@@ -764,4 +774,43 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--magitek);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 2rem;
+    gap: 1.5rem;
+    color: var(--magitek);
+}
+
+.empty-crystal {
+    opacity: 0.35;
+    filter: drop-shadow(0 0 24px var(--magitek));
+    animation: crystalPulse 3.5s ease-in-out infinite;
+}
+
+.empty-state h3 {
+    font-family: var(--font-heading);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.empty-state p {
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    opacity: 0.45;
+    letter-spacing: 0.05em;
+}
+
+@keyframes crystalPulse {
+    0%, 100% { opacity: 0.35; transform: translateY(0) scale(1); }
+    50%       { opacity: 0.65; transform: translateY(-6px) scale(1.04); }
 }

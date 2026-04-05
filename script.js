@@ -9,6 +9,33 @@ let filteredData = null;
 let currentItem = null;
 let currentLang = localStorage.getItem('xii_lang') || 'pt';
 
+const CATEGORY_COLORS = {
+    "Unarmed":          "badge-unarmed",
+    "One-Handed Sword": "badge-weapon",
+    "Sword":            "badge-weapon",
+    "Two-Handed Sword": "badge-weapon",
+    "Axe":              "badge-weapon",
+    "Hammer":           "badge-weapon",
+    "Dagger":           "badge-weapon",
+    "Mace":             "badge-weapon",
+    "Measure":          "badge-weapon",
+    "Katana":           "badge-weapon",
+    "Ninja Sword":      "badge-weapon",
+    "Spear":            "badge-weapon",
+    "Pole":             "badge-weapon",
+    "Hand-bomb":        "badge-ranged",
+    "Bow":              "badge-ranged",
+    "Crossbow":         "badge-ranged",
+    "Gun":              "badge-ranged",
+    "Rod":              "badge-magic",
+    "Staff":            "badge-magic",
+    "Mystic Armor":     "badge-magic",
+    "Shield":           "badge-shield",
+    "Heavy Armor":      "badge-armor",
+    "Light Armor":      "badge-armor",
+    "Accessory":        "badge-accessory"
+};
+
 const CATEGORY_EMOJIS = {
     "Unarmed": "\uD83E\uDD1D", 
     "One-Handed Sword": "\u2694\uFE0F", 
@@ -372,7 +399,18 @@ function renderTable() {
     tbody.innerHTML = '';
     const t = TRANSLATIONS[currentLang];
     if (!filteredData || !filteredData.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 5rem; color: var(--text-secondary); font-family: var(--font-mono);">${t.awaiting_data}</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="7"><div class="empty-state">
+            <svg class="empty-crystal" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="36,6 62,22 62,50 36,66 10,50 10,22" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                <polygon points="36,18 50,26 50,46 36,54 22,46 22,26" stroke="currentColor" stroke-width="0.75" fill="currentColor" fill-opacity="0.06"/>
+                <line x1="36" y1="6" x2="36" y2="66" stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 4"/>
+                <line x1="10" y1="22" x2="62" y2="50" stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 4"/>
+                <line x1="62" y1="22" x2="10" y2="50" stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 4"/>
+                <circle cx="36" cy="36" r="3" fill="currentColor" opacity="0.5"/>
+            </svg>
+            <h3>${t.awaiting_data}</h3>
+            <p>${currentLang === 'pt' ? 'Carregue ou arraste um arquivo JSON para começar' : 'Upload or drop a JSON file to begin'}</p>
+        </div></td></tr>`;
         return;
     }
     const fragment = document.createDocumentFragment();
@@ -381,7 +419,8 @@ function renderTable() {
         tr.style.animationDelay = `${Math.min(index * 0.05, 1)}s`;
         const imgUrl = `https://xii-equipment-editor.vercel.app/_next/image?url=%2Fassets%2Fpreviews%2Fitem_${item.bit}.webp&w=128&q=75`;
         const emoji = CATEGORY_EMOJIS[item.category] || "\uD83D\uDCE6";
-        tr.innerHTML = `<td><img src="${imgUrl}" style="width:48px;height:48px;object-fit:contain;background:var(--void);border:1px solid var(--border);border-radius:8px;" onerror="this.onerror=null; this.src='https://via.placeholder.com/48?text=?'"></td><td class="id-cell">${item.id}</td><td class="name-cell">${item.name}</td><td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">${item.license || '-'}</td><td><div class="category-badge"><span>${emoji}</span> ${item.category}</div></td><td>${renderElements(item.element ? item.element.value : [])}</td><td><button class="edit-btn" data-id="${item.id}">${t.btn_configure}</button></td>`;
+        const colorClass = CATEGORY_COLORS[item.category] || '';
+        tr.innerHTML = `<td><img src="${imgUrl}" style="width:48px;height:48px;object-fit:contain;background:var(--void);border:1px solid var(--border);border-radius:8px;" onerror="this.onerror=null; this.src='https://via.placeholder.com/48?text=?'"></td><td class="id-cell">${item.id}</td><td class="name-cell">${item.name}</td><td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">${item.license || '-'}</td><td><div class="category-badge ${colorClass}"><span>${emoji}</span> ${item.category}</div></td><td>${renderElements(item.element ? item.element.value : [])}</td><td><button class="edit-btn" data-id="${item.id}">${t.btn_configure}</button></td>`;
         fragment.appendChild(tr);
     });
     tbody.appendChild(fragment);
@@ -389,7 +428,14 @@ function renderTable() {
 
 function renderElements(elements) {
     if (!elements) return '-';
-    const elList = Array.isArray(elements) ? elements : (typeof elements === 'object' ? Object.keys(elements) : [elements]);
+    let elList;
+    if (Array.isArray(elements)) {
+        elList = elements;
+    } else if (typeof elements === 'object' && elements !== null) {
+        elList = elements.name ? [elements.name] : Object.keys(elements);
+    } else {
+        elList = [elements];
+    }
     if (elList.length === 0) return '-';
     return elList.map(el => `<img src="https://xii-equipment-editor.vercel.app/assets/elements/${el.toLowerCase()}.webp" title="${el}" style="width: 24px; height: 24px; margin-right: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">`).join('');
 }
@@ -428,6 +474,11 @@ function openEditModal(id) {
     renderStatusSelectors('immunityList', currentItem.immunity.value);
     renderAugmentSelectors(currentItem.augments.value || []);
     renderAffinityGrid(currentItem.affinity.value || {});
+
+    document.querySelectorAll('tbody tr.active-row').forEach(r => r.classList.remove('active-row'));
+    const activeRow = document.querySelector(`.edit-btn[data-id="${id}"]`)?.closest('tr');
+    if (activeRow) activeRow.classList.add('active-row');
+
     toggleModal(true);
 }
 
@@ -575,10 +626,15 @@ function renderPresetsSidebar() {
     list.appendChild(fragment);
 }
 
-function toggleModal(show) { 
+function toggleModal(show) {
     const overlay = document.getElementById('editModal');
     if(!overlay) return;
-    if(show) overlay.classList.add('active'); else overlay.classList.remove('active');
+    if (show) {
+        overlay.classList.add('active');
+    } else {
+        overlay.classList.remove('active');
+        document.querySelectorAll('tbody tr.active-row').forEach(r => r.classList.remove('active-row'));
+    }
 }
 
 function applyCustomScaling(factor) {
