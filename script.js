@@ -1234,18 +1234,62 @@ function applyCustomScaling(factor) {
 
 function exportToLua() {
     if (!originalData) return showNotification(TRANSLATIONS[currentLang].notify_no_data, 'error');
-    let lua = "-- FFXII Equipment Data\nreturn {\n";
-    originalData.forEach((item, idX) => {
-        lua += `  [${idX}] = {\n    id = ${item.id},\n    attr = {\n`;
-        for (let k in item.attr) {
-            lua += `      ${k} = { value = ${item.attr[k].value || 0}, scale = { `;
-            item.attr[k].scale.forEach((v, l) => { lua += `[${l}] = ${v}${l < 12 ? ',' : ''} `; });
-            lua += `} },\n`;
+    
+    function toLua(obj, indent = "") {
+        if (obj === null || obj === undefined) return "{}";
+        if (typeof obj === "number") return obj.toString();
+        if (typeof obj === "string") return `"${obj.replace(/"/g, '\\"')}"`;
+        if (typeof obj === "boolean") return obj.toString();
+        
+        if (Array.isArray(obj)) {
+            if (obj.length === 0) return "{}";
+            let res = "{\n";
+            for (let i = 0; i < obj.length; i++) {
+                res += `${indent}  [${i}] = ${toLua(obj[i], indent + "  ")}${i < obj.length - 1 ? ',' : ''}\n`;
+            }
+            res += `${indent}}`;
+            return res;
         }
-        lua += `    }\n  }${idX < originalData.length - 1 ? ',' : ''}\n`;
+        
+        if (typeof obj === "object") {
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return "{}";
+            let res = "{\n";
+            keys.forEach((k, idx) => {
+                const keyStr = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k) ? k : `["${k}"]`;
+                res += `${indent}  ${keyStr} = ${toLua(obj[k], indent + "  ")}${idx < keys.length - 1 ? ',' : ''}\n`;
+            });
+            res += `${indent}}`;
+            return res;
+        }
+        return "{}";
+    }
+
+    let lua = "-- Made By FehDead\nreturn {\n";
+    
+    // We only export the specific fields present in the original game data
+    const fieldsToExport = ['id', 'bit', 'attr', 'element', 'onhit', 'onequip', 'immunity', 'affinity'];
+    
+    originalData.forEach((item, index) => {
+        const cleanItem = {};
+        fieldsToExport.forEach(field => {
+            if (item[field] !== undefined) {
+                cleanItem[field] = item[field];
+            }
+        });
+        
+        lua += `  [${index}] = ${toLua(cleanItem, "  ")}${index < originalData.length - 1 ? ',' : ''}\n`;
     });
+    
     lua += "}\n";
+    
     const blob = new Blob([lua], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'equipmentData.lua'; a.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'equipmentData.lua';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
