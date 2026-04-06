@@ -626,6 +626,23 @@ function loadFromLocalStorage() {
             renderTable();
             showNotification(TRANSLATIONS[currentLang].notify_restore, 'success');
         } catch (e) { console.error(e); }
+    } else {
+        // Fetch default JSON if no local data
+        fetch('xii-equipment-data.json')
+            .then(response => {
+                if (!response.ok) throw new Error('Default JSON not found');
+                return response.json();
+            })
+            .then(json => {
+                originalData = json.data || json;
+                filteredData = [...originalData];
+                saveToLocalStorage();
+                renderTable();
+                console.log('Loaded default grimoire');
+            })
+            .catch(err => {
+                console.warn('Could not load default grimoire:', err);
+            });
     }
 }
 
