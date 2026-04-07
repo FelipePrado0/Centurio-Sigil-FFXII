@@ -223,6 +223,31 @@ header {
     font-family: var(--font-body);
 }
 
+/* Mod Requirement Badge — Sidebar bottom */
+.mod-requirement {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 1.25rem;
+    color: oklch(0.70 0.13 35);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-decoration: none;
+    background: oklch(0.65 0.13 35 / 0.1);
+    border: 1px solid oklch(0.65 0.13 35 / 0.35);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.25s var(--ease-expo);
+    flex-shrink: 0;
+}
+
+.mod-requirement:hover {
+    background: oklch(0.65 0.13 35 / 0.2);
+    border-color: oklch(0.70 0.13 35 / 0.6);
+    color: oklch(0.80 0.15 35);
+}
+
 /* Table */
 .table-wrapper {
     flex: 1;

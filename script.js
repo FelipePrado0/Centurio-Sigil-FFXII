@@ -154,7 +154,8 @@ const TRANSLATIONS = {
         transfer_title: "Aetherial Transfer",
         transfer_desc: "Drop your JSON grimoire here",
         label_scale_factor: "Scale Factor",
-        btn_apply_factor: "Apply Factor Globally"
+        btn_apply_factor: "Apply Factor Globally",
+        mod_required: "Mod Required"
     },
     pt: {
         title: "Editor de Equipamentos",
@@ -198,7 +199,8 @@ const TRANSLATIONS = {
         transfer_title: "Transfer\u00EAncia Et\u00E9rea",
         transfer_desc: "Solte seu grim\u00F3rio JSON aqui",
         label_scale_factor: "Fator de Escala",
-        btn_apply_factor: "Aplicar Fator Globalmente"
+        btn_apply_factor: "Aplicar Fator Globalmente",
+        mod_required: "Mod Requerido"
     }
 };
 
@@ -602,6 +604,8 @@ function updateUI() {
     if(labelSF) labelSF.textContent = t.label_scale_factor;
     const applyFactorBtn = document.getElementById('applyFactorBtn');
     if(applyFactorBtn) applyFactorBtn.textContent = t.btn_apply_factor;
+    const modReqText = document.getElementById('modRequiredText');
+    if(modReqText) modReqText.textContent = t.mod_required;
 
     renderTable();
     renderPresetsSidebar();
@@ -1234,55 +1238,152 @@ function applyCustomScaling(factor) {
 
 function exportToLua() {
     if (!originalData) return showNotification(TRANSLATIONS[currentLang].notify_no_data, 'error');
-    
-    function toLua(obj, indent = "") {
-        if (obj === null || obj === undefined) return "{}";
-        if (typeof obj === "number") return obj.toString();
-        if (typeof obj === "string") return `"${obj.replace(/"/g, '\\"')}"`;
-        if (typeof obj === "boolean") return obj.toString();
-        
-        if (Array.isArray(obj)) {
-            if (obj.length === 0) return "{}";
-            let res = "{\n";
-            for (let i = 0; i < obj.length; i++) {
-                res += `${indent}  [${i}] = ${toLua(obj[i], indent + "  ")}${i < obj.length - 1 ? ',' : ''}\n`;
+
+    function serializeValue(val, indent) {
+        const pad = ' '.repeat(indent);
+        const inner = ' '.repeat(indent + 2);
+
+        if (val === null || val === undefined) return '{}';
+        if (typeof val === 'number') return val.toString();
+        if (typeof val === 'string') return '"' + val + '"';
+        if (typeof val === 'boolean') return val.toString();
+
+        if (Array.isArray(val)) {
+            if (val.length === 0) return '{}';
+            const allObjects = val.every(v => typeof v === 'object' && v !== null && !Array.isArray(v));
+            if (allObjects) {
+                let s = '{\n';
+                val.forEach((v, i) => {
+                    s += inner + '[' + i + '] = ' + serializeObject(v, indent + 2);
+                    if (i < val.length - 1) s += ',';
+                    s += '\n';
+                });
+                s += pad + '}';
+                return s;
             }
-            res += `${indent}}`;
-            return res;
+            const allStrings = val.every(v => typeof v === 'string');
+            if (allStrings) return '{' + val.map(v => '"' + v + '"').join(', ') + '}';
+            return '{}';
         }
-        
-        if (typeof obj === "object") {
-            const keys = Object.keys(obj);
-            if (keys.length === 0) return "{}";
-            let res = "{\n";
-            keys.forEach((k, idx) => {
-                const keyStr = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k) ? k : `["${k}"]`;
-                res += `${indent}  ${keyStr} = ${toLua(obj[k], indent + "  ")}${idx < keys.length - 1 ? ',' : ''}\n`;
-            });
-            res += `${indent}}`;
-            return res;
-        }
-        return "{}";
+
+        if (typeof val === 'object') return serializeObject(val, indent);
+        return '{}';
     }
 
-    let lua = "-- Made By FehDead\nreturn {\n";
-    
-    // We only export the specific fields present in the original game data
-    const fieldsToExport = ['id', 'bit', 'attr', 'element', 'onhit', 'onequip', 'immunity', 'affinity'];
-    
-    originalData.forEach((item, index) => {
-        const cleanItem = {};
-        fieldsToExport.forEach(field => {
-            if (item[field] !== undefined) {
-                cleanItem[field] = item[field];
-            }
+    function serializeObject(obj, indent) {
+        const pad = ' '.repeat(indent);
+        const inner = ' '.repeat(indent + 2);
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return '{}';
+        let s = '{\n';
+        keys.forEach((k, i) => {
+            s += inner + k + ' = ' + serializeValue(obj[k], indent + 2);
+            if (i < keys.length - 1) s += ',';
+            s += '\n';
         });
-        
-        lua += `  [${index}] = ${toLua(cleanItem, "  ")}${index < originalData.length - 1 ? ',' : ''}\n`;
+        s += pad + '}';
+        return s;
+    }
+
+    function serializeAttrScale(scaleArr) {
+        let s = '{\n';
+        scaleArr.forEach((v, i) => {
+            s += '          [' + i + '] = ' + v;
+            if (i < scaleArr.length - 1) s += ',';
+            s += '\n';
+        });
+        s += '        }';
+        return s;
+    }
+
+    function serializeExtraScale(scaleArr) {
+        let s = '{\n';
+        scaleArr.forEach((v, i) => {
+            if (Array.isArray(v)) {
+                if (v.length === 0) {
+                    s += '        [' + i + '] = {}';
+                } else {
+                    const allObjects = v.every(x => typeof x === 'object' && x !== null && !Array.isArray(x));
+                    if (allObjects) {
+                        s += '        [' + i + '] = {\n';
+                        v.forEach((x, xi) => {
+                            s += '          [' + xi + '] = ' + serializeObject(x, 10);
+                            if (xi < v.length - 1) s += ',';
+                            s += '\n';
+                        });
+                        s += '        }';
+                    } else {
+                        s += '        [' + i + '] = {}';
+                    }
+                }
+            } else if (typeof v === 'object' && v !== null) {
+                s += '        [' + i + '] = {}';
+            } else {
+                s += '        [' + i + '] = {}';
+            }
+            if (i < scaleArr.length - 1) s += ',';
+            s += '\n';
+        });
+        s += '      }';
+        return s;
+    }
+
+    function serializeItem(item) {
+        const FIELDS = ['id', 'bit', 'attr', 'element', 'onhit', 'onequip', 'immunity', 'affinity'];
+        const parts = [];
+
+        for (const field of FIELDS) {
+            if (item[field] === undefined) continue;
+
+            if (field === 'id' || field === 'bit') {
+                parts.push('    ' + field + ' = ' + item[field]);
+                continue;
+            }
+
+            if (field === 'attr') {
+                const entries = Object.entries(item.attr);
+                let s = '    attr = {\n';
+                entries.forEach(([akey, adata], ai) => {
+                    s += '      ' + akey + ' = {\n';
+                    s += '        value = ' + (adata.value ?? 0) + ',\n';
+                    s += '        scale = ' + serializeAttrScale(adata.scale) + '\n';
+                    s += '      }';
+                    if (ai < entries.length - 1) s += ',';
+                    s += '\n';
+                });
+                s += '    }';
+                parts.push(s);
+                continue;
+            }
+
+            const extra = item[field] || {};
+            let s = '    ' + field + ' = {\n';
+            s += '      value = ' + serializeValue(extra.value, 6) + ',\n';
+            if (extra.scale && Array.isArray(extra.scale)) {
+                s += '      scale = ' + serializeExtraScale(extra.scale) + '\n';
+            }
+            s += '    }';
+            parts.push(s);
+        }
+
+        let result = '{\n';
+        for (let i = 0; i < parts.length; i++) {
+            result += parts[i];
+            if (i < parts.length - 1) result += ',';
+            result += '\n';
+        }
+        result += '  }';
+        return result;
+    }
+
+    let lua = '-- Made By FehDead\nreturn {\n';
+    originalData.forEach((item, index) => {
+        lua += '  [' + index + '] = ' + serializeItem(item);
+        if (index < originalData.length - 1) lua += ',';
+        lua += '\n';
     });
-    
-    lua += "}\n";
-    
+    lua += '}\n';
+
     const blob = new Blob([lua], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
