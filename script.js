@@ -155,6 +155,11 @@ const TRANSLATIONS = {
         transfer_desc: "Drop your JSON grimoire here",
         label_scale_factor: "Scale Factor",
         btn_apply_factor: "Apply Factor Globally",
+        label_randomizer: "Aetherial Randomizer",
+        randomizer_desc: "Randomize all attributes scaling (Lv1-12). Values will always ascend.",
+        btn_randomize: "Randomize",
+        confirm_randomizer: "Chaos will reshape all artifacts! Attributes will scale randomly but always upwards. Proceed?",
+        notify_chaos_enforced: "Chaos paradigm enforced globally.",
         mod_required: "Mod Required"
     },
     pt: {
@@ -200,6 +205,11 @@ const TRANSLATIONS = {
         transfer_desc: "Solte seu grim\u00F3rio JSON aqui",
         label_scale_factor: "Fator de Escala",
         btn_apply_factor: "Aplicar Fator Globalmente",
+        label_randomizer: "Randomizador Et\u00E9reo",
+        randomizer_desc: "Randomiza o escalonamento de todos os atributos (Lv1-12). Os valores v\u00E3o sempre subir.",
+        btn_randomize: "Randomize",
+        confirm_randomizer: "O caos ir\u00E1 remodelar todos os artefatos! Os atributos crescer\u00E3o aleatoriamente, mas sempre para cima. Prosseguir?",
+        notify_chaos_enforced: "Paradigma do Caos aplicado globalmente.",
         mod_required: "Mod Requerido"
     }
 };
@@ -604,6 +614,14 @@ function updateUI() {
     if(labelSF) labelSF.textContent = t.label_scale_factor;
     const applyFactorBtn = document.getElementById('applyFactorBtn');
     if(applyFactorBtn) applyFactorBtn.textContent = t.btn_apply_factor;
+
+    const labelRand = document.getElementById('labelRandomizer');
+    if(labelRand) labelRand.textContent = t.label_randomizer;
+    const descRand = document.getElementById('randomizerDesc');
+    if(descRand) descRand.textContent = t.randomizer_desc;
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    if(randomizeBtn) randomizeBtn.textContent = t.btn_randomize;
+
     const modReqText = document.getElementById('modRequiredText');
     if(modReqText) modReqText.textContent = t.mod_required;
 
@@ -691,6 +709,7 @@ function initEventListeners() {
     const fInput = document.getElementById('factorInput');
     const fSlider = document.getElementById('factorSlider');
     const applyFBtn = document.getElementById('applyFactorBtn');
+    const randomizeBtn = document.getElementById('randomizeBtn');
 
     if(fInput && fSlider) {
         fInput.addEventListener('input', e => fSlider.value = e.target.value);
@@ -701,6 +720,12 @@ function initEventListeners() {
         applyFBtn.addEventListener('click', () => {
             const factor = parseFloat(fInput.value);
             applyCustomScaling(factor);
+        });
+    }
+
+    if(randomizeBtn) {
+        randomizeBtn.addEventListener('click', () => {
+            applyRandomizer();
         });
     }
 
@@ -1233,6 +1258,55 @@ function applyCustomScaling(factor) {
         const searchInput = document.getElementById('searchInput');
         filterData(searchInput ? searchInput.value : "");
         showNotification(t.notify_paradigm_enforced, 'success');
+    }
+}
+
+function applyRandomizer() {
+    if (!originalData) return showNotification(TRANSLATIONS[currentLang].notify_no_data, 'error');
+    const t = TRANSLATIONS[currentLang];
+    
+    if (confirm(t.confirm_randomizer)) {
+        originalData.forEach(item => {
+            if (!item.attr) return;
+            
+            for (let k in item.attr) {
+                const attr = item.attr[k];
+                if (attr.scale && attr.scale.length >= 13) {
+                    const base = attr.scale[0];
+                    let lastValue = base;
+                    
+                    for (let i = 1; i <= 12; i++) {
+                        // Ensure it always goes up or stays same, but we want it to feel like growth
+                        // Random increase between 0 and a weighted amount based on remaining space to 255
+                        const remainingSpace = 255 - lastValue;
+                        if (remainingSpace > 0) {
+                            // Max increase per level to avoid hitting 255 too early, but ensuring some growth
+                            const maxIncrease = Math.max(1, remainingSpace / (13 - i) * 1.5);
+                            const increase = Math.floor(Math.random() * maxIncrease);
+                            attr.scale[i] = Math.min(255, lastValue + increase);
+                        } else {
+                            attr.scale[i] = 255;
+                        }
+                        lastValue = attr.scale[i];
+                    }
+
+                    // Rule: points must always rise. If after randomization Lv12 <= Lv0 (and space was available), 
+                    // force at least a small increase if possible.
+                    if (attr.scale[12] <= base && base < 255) {
+                        attr.scale[12] = Math.min(255, base + 1);
+                        // Smooth back-fill to ensure non-decreasing
+                        for (let i = 11; i >= 1; i--) {
+                            if (attr.scale[i] > attr.scale[12]) attr.scale[i] = attr.scale[12];
+                        }
+                    }
+                }
+            }
+        });
+        
+        saveToLocalStorage();
+        const searchInput = document.getElementById('searchInput');
+        filterData(searchInput ? searchInput.value : "");
+        showNotification(t.notify_chaos_enforced, 'success');
     }
 }
 

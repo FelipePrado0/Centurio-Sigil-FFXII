@@ -65,51 +65,61 @@ body {
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    padding: 1.5rem;
+    padding: 1rem;
     backdrop-filter: blur(10px);
     box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
     animation: slideInLeft 0.8s var(--ease-expo) forwards;
-    min-height: 0; /* Permitir que o item do grid encolha */
+    min-height: 0;
     overflow: hidden;
+    gap: 0.5rem;
 }
 
 .sidebar h3 {
     font-family: var(--font-heading);
     color: var(--gold);
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     letter-spacing: 0.05em;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
 }
 
 .sidebar p {
     color: var(--text-secondary);
-    font-size: 0.8rem;
-    margin-bottom: 1.5rem;
-    line-height: 1.4;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
 }
 
 .preset-list {
-    flex: 1;
+    flex: 1 1 60%;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding-right: 0.5rem;
+    gap: 0.5rem;
+    padding-right: 0.4rem;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-footer {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
 }
 
 .preset-card {
     background: var(--void);
     border: 1px solid var(--border);
-    padding: 1rem;
-    border-radius: 8px;
+    padding: 0.6rem;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.3s var(--ease-expo);
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.1rem;
     min-height: min-content;
     width: 100%;
 }
@@ -348,21 +358,21 @@ tbody tr.active-row td:first-child {
     background: var(--magitek);
     color: var(--void);
     border: none;
-    padding: 0.8rem 1.5rem;
+    padding: 0.5rem 1rem;
     border-radius: 6px;
     font-family: var(--font-mono);
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s var(--ease-expo);
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     letter-spacing: 0.05em;
     position: relative;
 }
 
 .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px -4px var(--magitek-glow), 0 0 0 1px var(--magitek);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px var(--magitek-glow), 0 0 0 1px var(--magitek);
 }
 
 .btn-secondary {
@@ -375,6 +385,16 @@ tbody tr.active-row td:first-child {
     border-color: var(--text-primary);
     box-shadow: none;
     background: var(--surface-elevated);
+}
+
+.btn-chaos {
+    background: linear-gradient(135deg, #8521e2 0%, #5d14a1 100%);
+    color: white;
+}
+
+.btn-chaos:hover {
+    box-shadow: 0 4px 12px -2px rgba(133, 33, 226, 0.5), 0 0 0 1px #8521e2;
+    transform: translateY(-1px);
 }
 
 .edit-btn {
